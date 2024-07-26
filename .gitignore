@@ -4,3 +4,5 @@
 *.pyc
 __pycache__/
 # End Generation Here
+intermediate_main_data.csv
+vertical_mapping.csv
