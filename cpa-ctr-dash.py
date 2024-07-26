@@ -53,17 +53,18 @@ if check_password():
         "Select Metric",
         options=['CTR', 'CPA']
     )
-
     # Filter and prepare data
     if selected_vertical == 'All Verticals':
         df_filtered = vertical_metrics_df
     else:
         df_filtered = vertical_metrics_df[vertical_metrics_df['Vertical'] == selected_vertical]
 
+    # Group by '3rd Party Data Brand' and filter out brands with less than 1000 impressions
     df_grouped = df_filtered.groupby('3rd Party Data Brand').agg({
         selected_metric: 'mean',
         'Impressions': 'sum'
     }).reset_index()
+    df_grouped = df_grouped[df_grouped['Impressions'] >= 1000]
 
     df_sorted = df_grouped.sort_values(selected_metric, ascending=True if selected_metric == 'CPA' else False)
     top_10 = df_sorted.head(10)
@@ -80,7 +81,7 @@ if check_password():
     y_format = '.2%' if selected_metric == 'CTR' else '.2f'
 
     fig.update_layout(
-        title=f"Top 10 Brands by {selected_metric} for {selected_vertical}",
+        title=f"Best 10 Brands by {selected_metric} for {selected_vertical}",
         xaxis_title="3rd Party Data Brand",
         yaxis_title=y_title,
         yaxis_tickformat=y_format,

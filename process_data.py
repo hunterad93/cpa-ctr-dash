@@ -10,6 +10,7 @@ def load_and_preprocess_multiple_files(folder_path, sheet_name):
         if file.endswith('.xlsx'):
             file_path = os.path.join(folder_path, file)
             df = pd.read_excel(file_path, sheet_name=sheet_name)
+            print(df.columns)
             all_data.append(df)
     return pd.concat(all_data, ignore_index=True)
 
@@ -105,8 +106,6 @@ if __name__ == "__main__":
     vertical_metrics_df = calculate_vertical_metrics(df_merged)
 
     vertical_metrics_df = vertical_metrics_df.drop(columns=['Advertiser'], errors='ignore')
-
-    vertical_metrics_df = vertical_metrics_df[vertical_metrics_df['Impressions'] >= 1000]
 
     # Save results
     vertical_metrics_df.to_csv('processed_vertical_metrics.csv', index=False)
