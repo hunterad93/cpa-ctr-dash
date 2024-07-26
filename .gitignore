@@ -1,2 +1,6 @@
 *.ipynb
 *.toml
+# Start Generation Here
+*.pyc
+__pycache__/
+# End Generation Here

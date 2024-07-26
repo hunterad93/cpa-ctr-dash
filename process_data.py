@@ -106,6 +106,8 @@ if __name__ == "__main__":
 
     vertical_metrics_df = vertical_metrics_df.drop(columns=['Advertiser'], errors='ignore')
 
+    vertical_metrics_df = vertical_metrics_df[vertical_metrics_df['Impressions'] >= 1000]
+
     # Save results
     vertical_metrics_df.to_csv('processed_vertical_metrics.csv', index=False)
     print("Processed data saved to 'processed_vertical_metrics.csv'")

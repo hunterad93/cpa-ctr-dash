@@ -44,16 +44,23 @@ def categorize_advertiser(advertiser_name, categories):
         print(f"Error categorizing {advertiser_name}: {str(e)}")
         return "Uncategorized"
 
+import concurrent.futures
+
 def batch_categorize_advertisers(advertisers, categories):
     """
-    Categorize a batch of advertisers.
+    Categorize a batch of advertisers concurrently.
     
     :param advertisers: list of str, names of advertisers
     :param categories: list of str, available categories
     :return: dict, mapping of advertiser names to categories
     """
     categorized = {}
-    for advertiser in advertisers:
+
+    def categorize_and_store(advertiser):
         category = categorize_advertiser(advertiser, categories)
         categorized[advertiser] = category
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.map(categorize_and_store, advertisers)
+
     return categorized
