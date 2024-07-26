@@ -1,17 +1,62 @@
 import openai
 import streamlit as st
+from fuzzywuzzy import process
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 
 # Set up OpenAI API key
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-def categorize_advertiser(advertiser_name, categories):
+def get_top_matches(name, choices, n=10):
+    return process.extract(name, choices, limit=n)
+
+def llm_choose_match(advertiser_name, top_matches):
+    matches_str = "\n".join([f"{match[0]} (Score: {match[1]})" for match in top_matches])
+    prompt = f"""
+    Given the advertiser name "{advertiser_name}", choose the best matching company from the following list:
+    {matches_str}
+
+    Respond with only the exact company name you've chosen, no explanation or anything else.
+    If none of the options seem like a good match, respond with "No match".
     """
-    Use ChatGPT to categorize an advertiser based on their name.
+
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that matches advertisers to companies."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=50,
+            n=1,
+            stop=None,
+            temperature=0,
+        )
+        
+        chosen_match = response.choices[0].message.content.strip()
+        return chosen_match if chosen_match != "No match" else None
     
-    :param advertiser_name: str, name of the advertiser
-    :param categories: list of str, available categories
-    :return: str, the chosen category
-    """
+    except Exception as e:
+        print(f"Error matching {advertiser_name}: {str(e)}")
+        return None
+
+def categorize_advertiser(advertiser_name, categories, df_lookup, columns_to_check):
+    # First, try to find a match using the LLM
+    all_top_matches = []
+    for column in columns_to_check:
+        top_matches = get_top_matches(advertiser_name, df_lookup[column].unique())
+        all_top_matches.extend(top_matches)
+    
+    chosen_match = llm_choose_match(advertiser_name, all_top_matches)
+    
+    if chosen_match:
+        # Find the vertical for the chosen match
+        for column in columns_to_check:
+            if chosen_match in df_lookup[column].values:
+                vertical = df_lookup.loc[df_lookup[column] == chosen_match, 'Client Industry Value'].iloc[0]
+                return vertical, chosen_match, 'LLM Matched'
+    
+    # If no match is found, use the original categorization method
     prompt = f"""
     Given the advertiser name "{advertiser_name}", choose the most appropriate category from the following list:
     {', '.join(categories)}
@@ -33,34 +78,11 @@ def categorize_advertiser(advertiser_name, categories):
         )
         
         category = response.choices[0].message.content.strip()
-        print(category)
-        # Ensure the returned category is in the list of categories
         if category not in categories:
-            return "Uncategorized"
+            return "Uncategorized", None, 'AI Categorized'
         
-        return category
+        return category, None, 'AI Categorized'
     
     except Exception as e:
         print(f"Error categorizing {advertiser_name}: {str(e)}")
-        return "Uncategorized"
-
-import concurrent.futures
-
-def batch_categorize_advertisers(advertisers, categories):
-    """
-    Categorize a batch of advertisers concurrently.
-    
-    :param advertisers: list of str, names of advertisers
-    :param categories: list of str, available categories
-    :return: dict, mapping of advertiser names to categories
-    """
-    categorized = {}
-
-    def categorize_and_store(advertiser):
-        category = categorize_advertiser(advertiser, categories)
-        categorized[advertiser] = category
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        executor.map(categorize_and_store, advertisers)
-
-    return categorized
+        return "Uncategorized", None, 'AI Categorized'

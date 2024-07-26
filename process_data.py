@@ -34,20 +34,13 @@ def create_vertical_mapping(advertisers, df_lookup):
     
     vertical_mapping = []
     for advertiser in advertisers:
-        matched_name, score, matched_column = hierarchical_match(advertiser, df_lookup, columns_to_check)
-        if matched_name:
-            vertical = df_lookup.loc[df_lookup[matched_column] == matched_name, 'Client Industry Value'].iloc[0]
-        else:
-            # Use AI categorizer if hierarchical match fails
-            vertical = categorize_advertiser(advertiser, categories)
-            score = None  # No match score for AI categorization
-            matched_column = 'AI Categorized'
+        vertical, matched_name, matched_column = categorize_advertiser(advertiser, categories, df_lookup, columns_to_check)
         
         vertical_mapping.append({
             'Advertiser': advertiser,
             'Matched_Company': matched_name if matched_name else 'AI Matched',
             'Vertical': vertical,
-            'Match_Score': score,
+            'Match_Score': None,  # We don't have a score for LLM matching
             'Matched_Column': matched_column
         })
     
