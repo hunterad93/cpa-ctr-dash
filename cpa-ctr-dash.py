@@ -99,7 +99,8 @@ def main():
     
     selected_metric = st.sidebar.selectbox(
         "Select Metric",
-        options=['CTR', 'CPA', 'Normalized Score']
+        options=['CTR', 'CPA', 'Normalized Score'],
+        help="Normalized Score balances CTR and CPA"
     )
     
     fig, df_sorted = create_chart(df_grouped, selected_metric, selected_vertical)
