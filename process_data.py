@@ -38,10 +38,10 @@ def create_vertical_mapping(advertisers, df_lookup):
         
         vertical_mapping.append({
             'Advertiser': advertiser,
-            'Matched_Company': matched_name if matched_name else 'AI Matched',
+            'Matched_Company': matched_name if matched_name else 'NO MATCH',
             'Vertical': vertical,
             'Match_Score': None,  # We don't have a score for LLM matching
-            'Matched_Column': matched_column
+            'Categorization_Technique': matched_column
         })
     
     return pd.DataFrame(vertical_mapping)
