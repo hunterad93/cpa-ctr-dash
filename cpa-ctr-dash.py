@@ -22,7 +22,7 @@ def validate_password():
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv('processed_vertical_metrics.csv')
+    df = pd.read_csv('aggregated_metrics.csv')
     df['3rd Party Data ID'] = df['3rd Party Data ID'].astype(str).str[:-2] + ' ' + df['3rd Party Data Brand']
     return df
 
@@ -43,8 +43,11 @@ def calculate_metrics(df, grouping_field):
     df['CTR'] = df['Clicks'] / df['Impressions']
     df['CPA'] = df['Hypothetical Advertiser Cost (Adv Currency)'] / df['All Last Click + View Conversions']
     
-    impression_threshold = 5000 if grouping_field == '3rd Party Data Brand' else 1000
+    # Filter out invalid metrics
+    df = df[~df['CPA'].isin([np.inf, -np.inf, np.nan])]
+    df = df[df['CPA'] > 0]
     
+    impression_threshold = 5000 if grouping_field == '3rd Party Data Brand' else 1000
     return df[df['Impressions'] >= impression_threshold]
 
 def calculate_scores(df):
@@ -61,6 +64,7 @@ def prepare_data(df, selected_vertical, grouping_field):
     aggregated_df = aggregate_data(filtered_df, grouping_field)
     df_with_metrics = calculate_metrics(aggregated_df, grouping_field)
     return calculate_scores(df_with_metrics)
+
 
 def create_chart(df, selected_metric, selected_vertical, grouping_field):
     if selected_metric == 'Normalized Score':
