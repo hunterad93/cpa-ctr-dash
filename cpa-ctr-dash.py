@@ -22,40 +22,47 @@ def validate_password():
 
 @st.cache_data
 def load_data():
-    return pd.read_csv('processed_vertical_metrics.csv')
+    df = pd.read_csv('processed_vertical_metrics.csv')
+    df['3rd Party Data ID'] = df['3rd Party Data ID'].astype(str).str[:-2] + ' ' + df['3rd Party Data Brand']
+    return df
 
-def prepare_data(df, selected_vertical):
+def filter_data(df, selected_vertical):
     if selected_vertical == 'All Verticals':
-        df_grouped = df.groupby('3rd Party Data Brand').agg({
-            'Clicks': 'sum',
-            'Impressions': 'sum',
-            'Hypothetical Advertiser Cost (Adv Currency)': 'sum',
-            'All Last Click + View Conversions': 'sum'
-        }).reset_index()
-    else:
-        df_filtered = df[df['Vertical'] == selected_vertical]
-        df_grouped = df_filtered.groupby(['Vertical', '3rd Party Data Brand']).agg({
-            'Clicks': 'sum',
-            'Impressions': 'sum',
-            'Hypothetical Advertiser Cost (Adv Currency)': 'sum',
-            'All Last Click + View Conversions': 'sum'
-        }).reset_index()
-    
-    df_grouped['CTR'] = df_grouped['Clicks'] / df_grouped['Impressions']
-    df_grouped['CPA'] = df_grouped['Hypothetical Advertiser Cost (Adv Currency)'] / df_grouped['All Last Click + View Conversions']
-    
-    df_grouped = df_grouped[df_grouped['Impressions'] >= 1000]
-    
-    df_grouped['CTR_zscore'] = stats.zscore(df_grouped['CTR'])
-    df_grouped['CPA_zscore'] = stats.zscore(df_grouped['CPA'])
-    df_grouped['composite_score'] = df_grouped['CTR_zscore'] - df_grouped['CPA_zscore']
-    
-    min_score, max_score = df_grouped['composite_score'].min(), df_grouped['composite_score'].max()
-    df_grouped['normalized_score'] = 1 + 99 * (df_grouped['composite_score'] - min_score) / (max_score - min_score)
-    
-    return df_grouped
+        return df
+    return df[df['Vertical'] == selected_vertical]
 
-def create_chart(df, selected_metric, selected_vertical):
+def aggregate_data(df, grouping_field):
+    return df.groupby(grouping_field).agg({
+        'Clicks': 'sum',
+        'Impressions': 'sum',
+        'Hypothetical Advertiser Cost (Adv Currency)': 'sum',
+        'All Last Click + View Conversions': 'sum'
+    }).reset_index()
+
+def calculate_metrics(df, grouping_field):
+    df['CTR'] = df['Clicks'] / df['Impressions']
+    df['CPA'] = df['Hypothetical Advertiser Cost (Adv Currency)'] / df['All Last Click + View Conversions']
+    
+    impression_threshold = 5000 if grouping_field == '3rd Party Data Brand' else 1000
+    
+    return df[df['Impressions'] >= impression_threshold]
+
+def calculate_scores(df):
+    df['CTR_zscore'] = stats.zscore(df['CTR'])
+    df['CPA_zscore'] = stats.zscore(df['CPA'])
+    df['composite_score'] = df['CTR_zscore'] - df['CPA_zscore']
+    
+    min_score, max_score = df['composite_score'].min(), df['composite_score'].max()
+    df['normalized_score'] = 1 + 99 * (df['composite_score'] - min_score) / (max_score - min_score)
+    return df
+
+def prepare_data(df, selected_vertical, grouping_field):
+    filtered_df = filter_data(df, selected_vertical)
+    aggregated_df = aggregate_data(filtered_df, grouping_field)
+    df_with_metrics = calculate_metrics(aggregated_df, grouping_field)
+    return calculate_scores(df_with_metrics)
+
+def create_chart(df, selected_metric, selected_vertical, grouping_field):
     if selected_metric == 'Normalized Score':
         selected_metric = 'normalized_score'
     
@@ -63,7 +70,7 @@ def create_chart(df, selected_metric, selected_vertical):
     top_15 = df_sorted.head(15)
     
     fig = go.Figure(data=[go.Bar(
-        y=top_15['3rd Party Data Brand'],
+        y=top_15[grouping_field],
         x=top_15[selected_metric],
         orientation='h'
     )])
@@ -74,28 +81,45 @@ def create_chart(df, selected_metric, selected_vertical):
     display_metric = "Normalized Score" if selected_metric == 'normalized_score' else selected_metric
     
     fig.update_layout(
-        title=f"Top 15 Brands by {display_metric} for {selected_vertical}",
-        yaxis_title="3rd Party Data Brand",
+        title=f"Top 15 {grouping_field}s by {display_metric} for {selected_vertical}",
+        yaxis_title=grouping_field,
         xaxis_title=x_title,
         xaxis_tickformat=x_format,
         height=600,
         width=800
     )
     
-    fig.update_yaxes(autorange="reversed")
+    fig.update_yaxes(autorange="reversed", type='category')
     
     return fig, df_sorted
+
+def display_chart_and_table(fig, df_sorted):
+    st.plotly_chart(fig, use_container_width=True)
+    st.subheader("Data Table")
+    st.dataframe(df_sorted, use_container_width=True, hide_index=True)
 
 def main():    
     st.set_page_config(layout="wide")
     
     vertical_metrics_df = load_data()
+
+    grouping_options = {
+        'Brand': '3rd Party Data Brand',
+        'Segment ID': '3rd Party Data ID'
+    }
+
+    grouping_selection = st.sidebar.selectbox(
+        "Aggregate by",
+        options=list(grouping_options.keys()),
+        help="Choose to view results by Brand or individual Segment ID"
+    )
+
+    grouping_field = grouping_options[grouping_selection]
     
-    st.sidebar.header("Filters")
     vertical_options = ['All Verticals'] + list(vertical_metrics_df['Vertical'].unique())
     selected_vertical = st.sidebar.selectbox("Select Vertical", options=vertical_options)
     
-    df_grouped = prepare_data(vertical_metrics_df, selected_vertical)
+    df_grouped = prepare_data(vertical_metrics_df, selected_vertical, grouping_field)
     
     selected_metric = st.sidebar.selectbox(
         "Select Metric",
@@ -103,12 +127,8 @@ def main():
         help="Normalized Score balances CTR and CPA"
     )
     
-    fig, df_sorted = create_chart(df_grouped, selected_metric, selected_vertical)
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    st.subheader("Data Table")
-    st.dataframe(df_sorted, use_container_width=True, hide_index=True)
+    fig, df_sorted = create_chart(df_grouped, selected_metric, selected_vertical, grouping_field)
+    display_chart_and_table(fig, df_sorted)
 
 if check_password():
     main()
