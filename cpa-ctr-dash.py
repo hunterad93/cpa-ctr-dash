@@ -41,7 +41,7 @@ def aggregate_data(df, grouping_field):
 
 def calculate_metrics(df, grouping_field):
     df['CTR'] = df['Clicks'] / df['Impressions']
-    df['CPA'] = df['Hypothetical Advertiser Cost (Adv Currency)'] / df['All Last Click + View Conversions']
+    df['CPA'] = df['Hypothetical Advertiser Cost (Adv Currency)'] / df['Clicks']
     
     # Filter out invalid metrics
     df = df[~df['CPA'].isin([np.inf, -np.inf, np.nan])]
