@@ -17,7 +17,7 @@ def load_and_preprocess_multiple_files(folder_path, sheet_name):
 def load_and_preprocess_data(file_path, sheet_name):
     return pd.read_excel(file_path, sheet_name=sheet_name)
 
-def get_best_match(name, choices, score_cutoff=90):
+def get_best_match(name, choices, score_cutoff=85):
     best_match = process.extractOne(name, choices, score_cutoff=score_cutoff)
     return best_match if best_match else None
 

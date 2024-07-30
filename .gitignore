@@ -1,8 +1,7 @@
 *.ipynb
 *.toml
-# Start Generation Here
 *.pyc
 __pycache__/
-# End Generation Here
 intermediate_main_data.csv
 vertical_mapping.csv
+.DS_Store
