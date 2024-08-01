@@ -41,19 +41,19 @@ def aggregate_data(df, grouping_field):
 
 def calculate_metrics(df, grouping_field):
     df['CTR'] = df['Clicks'] / df['Impressions']
-    df['CPA'] = df['Hypothetical Advertiser Cost (Adv Currency)'] / df['All Last Click + View Conversions']
+    df['CPC'] = df['Hypothetical Advertiser Cost (Adv Currency)'] / df['Clicks']
     
     # Filter out invalid metrics
-    df = df[~df['CPA'].isin([np.inf, -np.inf, np.nan])]
-    df = df[df['CPA'] > 0]
+    df = df[~df['CPC'].isin([np.inf, -np.inf, np.nan])]
+    df = df[df['CPC'] > 0]
     
     impression_threshold = 5000 if grouping_field == '3rd Party Data Brand' else 1000
     return df[df['Impressions'] >= impression_threshold]
 
 def calculate_scores(df):
     df['CTR_zscore'] = stats.zscore(df['CTR'])
-    df['CPA_zscore'] = stats.zscore(df['CPA'])
-    df['composite_score'] = df['CTR_zscore'] - df['CPA_zscore']
+    df['CPC_zscore'] = stats.zscore(df['CPC'])
+    df['composite_score'] = df['CTR_zscore'] - df['CPC_zscore']
     
     min_score, max_score = df['composite_score'].min(), df['composite_score'].max()
     df['normalized_score'] = 1 + 99 * (df['composite_score'] - min_score) / (max_score - min_score)
@@ -70,7 +70,7 @@ def create_chart(df, selected_metric, selected_vertical, grouping_field):
     if selected_metric == 'Normalized Score':
         selected_metric = 'normalized_score'
     
-    df_sorted = df.sort_values(selected_metric, ascending=selected_metric == 'CPA')
+    df_sorted = df.sort_values(selected_metric, ascending=selected_metric == 'CPC')
     top_15 = df_sorted.head(15)
     
     fig = go.Figure(data=[go.Bar(
@@ -79,8 +79,8 @@ def create_chart(df, selected_metric, selected_vertical, grouping_field):
         orientation='h'
     )])
     
-    x_title = {"CTR": "CTR", "CPA": "CPA ($)", "normalized_score": "Normalized Score"}[selected_metric]
-    x_format = '.2%' if selected_metric == 'CTR' else '.2f' if selected_metric == 'CPA' else ''
+    x_title = {"CTR": "CTR", "CPC": "CPC ($)", "normalized_score": "Normalized Score"}[selected_metric]
+    x_format = '.2%' if selected_metric == 'CTR' else '.2f' if selected_metric == 'CPC' else ''
     
     display_metric = "Normalized Score" if selected_metric == 'normalized_score' else selected_metric
     
@@ -127,8 +127,8 @@ def main():
     
     selected_metric = st.sidebar.selectbox(
         "Select Metric",
-        options=['CTR', 'CPA', 'Normalized Score'],
-        help="Normalized Score balances CTR and CPA"
+        options=['CTR', 'CPC', 'Normalized Score'],
+        help="Normalized Score balances CTR and CPC"
     )
     
     fig, df_sorted = create_chart(df_grouped, selected_metric, selected_vertical, grouping_field)
