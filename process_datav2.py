@@ -52,7 +52,7 @@ def aggregate_data(df):
         'Clicks': 'sum',
         'Impressions': 'sum',
         'Hypothetical Advertiser Cost (Adv Currency)': 'sum',
-        'All Last Click + View Conversions': 'sum'
+        '01 - Total Click + View Conversions': 'sum'
     }).reset_index()
     
     return aggregated
